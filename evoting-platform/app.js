@@ -46,6 +46,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     const l = $('loader');
     l.classList.add('hidden');
   }, 800);
+  
+  // Set storage retry time to avoid indefinite hanging on CORS errors
+  if (typeof storage !== 'undefined') {
+    storage.setMaxUploadRetryTime(3000); // 3 seconds timeout
+  }
+
   loadTheme();
   loadAdminStats();
   listenPollingState();
@@ -629,14 +635,24 @@ async function addCandidate() {
     let symbolURL = '';
 
     if (photoFile) {
-      const ref = storage.ref(`candidates/${Date.now()}_photo`);
-      await ref.put(photoFile);
-      photoURL = await ref.getDownloadURL();
+      try {
+        const ref = storage.ref(`candidates/${Date.now()}_photo`);
+        await ref.put(photoFile);
+        photoURL = await ref.getDownloadURL();
+      } catch (err) {
+        console.warn('Storage upload failed for photo, falling back to base64', err);
+        photoURL = await fileToBase64(photoFile);
+      }
     }
     if (symbolFile) {
-      const ref = storage.ref(`candidates/${Date.now()}_symbol`);
-      await ref.put(symbolFile);
-      symbolURL = await ref.getDownloadURL();
+      try {
+        const ref = storage.ref(`candidates/${Date.now()}_symbol`);
+        await ref.put(symbolFile);
+        symbolURL = await ref.getDownloadURL();
+      } catch (err) {
+        console.warn('Storage upload failed for symbol, falling back to base64', err);
+        symbolURL = await fileToBase64(symbolFile);
+      }
     }
 
     await db.collection('candidates').add({ name, party, photoURL, symbolURL, votes: 0 });
@@ -718,3 +734,13 @@ function closeThemeModal() { $('themeModal').classList.add('hidden'); }
 $('themeModal').addEventListener('click', e => {
   if (e.target === $('themeModal')) closeThemeModal();
 });
+
+// Helper for falling back to base64 strings when storage is unavailable due to CORS
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+}
