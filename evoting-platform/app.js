@@ -239,6 +239,7 @@ async function renderBallot() {
       return;
     }
     list.innerHTML = '';
+    let index = 1;
     snap.forEach(doc => {
       const c = { id: doc.id, ...doc.data() };
       const card = document.createElement('div');
@@ -246,13 +247,14 @@ async function renderBallot() {
       card.id = `cand-${c.id}`;
       card.innerHTML = `
         <img class="cand-photo" src="${c.photoURL || 'https://ui-avatars.com/api/?name='+encodeURIComponent(c.name)+'&background=6366f1&color=fff'}" alt="${c.name}"/>
-        <h3>${c.name}</h3>
+        <h3>Candidate ${index}: ${c.name}</h3>
         <p class="cand-party">${c.party}</p>
         ${c.symbolURL ? `<img class="cand-symbol" src="${c.symbolURL}" alt="Party Symbol"/>` : ''}
         <button class="vote-btn" onclick="selectCandidate('${c.id}','${c.name}','${c.party}','${c.photoURL||''}','${c.symbolURL||''}')">
           🗳️ Vote
         </button>`;
       list.appendChild(card);
+      index++;
     });
   } catch (e) {
     list.innerHTML = `<p style="color:var(--danger)">Error: ${e.message}</p>`;
@@ -660,6 +662,7 @@ async function loadAdminCandidates() {
     const snap = await db.collection('candidates').get();
     if (snap.empty) { list.innerHTML = '<p style="color:var(--text2)">No candidates yet.</p>'; return; }
     list.innerHTML = '';
+    let index = 1;
     snap.forEach(doc => {
       const c = { id: doc.id, ...doc.data() };
       const row = document.createElement('div');
@@ -667,9 +670,10 @@ async function loadAdminCandidates() {
       row.innerHTML = `
         <img src="${c.photoURL || 'https://ui-avatars.com/api/?name='+encodeURIComponent(c.name)+'&background=6366f1&color=fff'}" alt="${c.name}"/>
         ${c.symbolURL ? `<img class="sym" src="${c.symbolURL}" alt="symbol"/>` : ''}
-        <div class="info"><h4>${c.name}</h4><p>${c.party} · ${c.votes||0} votes</p></div>
+        <div class="info"><h4>Candidate ${index}: ${c.name}</h4><p>${c.party} · ${c.votes||0} votes</p></div>
         <button class="del-btn" onclick="deleteCandidate('${c.id}')">🗑 Delete</button>`;
       list.appendChild(row);
+      index++;
     });
   } catch (e) {
     list.innerHTML = `<p style="color:var(--danger)">Error: ${e.message}</p>`;
