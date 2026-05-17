@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SecureVote — E-Voting Platform</title>
+<meta name="description" content="Secure, transparent and tamper-proof electronic voting platform with face verification."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body class="theme-dark" id="appBody">
+
+<!-- ══════════════ LOADER ══════════════ -->
+<div id="loader" class="loader-overlay">
+  <div class="loader-box">
+    <div class="loader-ring"></div>
+    <p>SecureVote</p>
+  </div>
+</div>
+
+<!-- ══════════════ TOAST ══════════════ -->
+<div id="toast" class="toast hidden"></div>
+
+<!-- ══════════════ PAGE: HOME ══════════════ -->
+<div id="page-home" class="page active">
+  <div class="hero-bg"></div>
+  <div class="home-wrap">
+    <div class="brand">
+      <div class="brand-icon">🗳️</div>
+      <h1 class="brand-name">SecureVote</h1>
+      <p class="brand-sub">Transparent · Tamper-Proof · Democratic</p>
+    </div>
+    <div class="home-cards">
+      <div class="card glass voter-card" id="btnVoterLoginCard">
+        <div class="card-icon">🧑‍💼</div>
+        <h2>Voter Login</h2>
+        <p>Already registered? Login with your Voter ID and face verification.</p>
+        <button class="btn btn-primary" onclick="showPage('page-voter-login')">Login to Vote</button>
+      </div>
+      <div class="card glass register-card" id="btnRegisterCard">
+        <div class="card-icon">📋</div>
+        <h2>New Registration</h2>
+        <p>First-time voter? Register now with your details and biometric capture.</p>
+        <button class="btn btn-accent" onclick="showPage('page-register')">Register Now</button>
+      </div>
+      <div class="card glass admin-card" id="btnAdminCard">
+        <div class="card-icon">🛡️</div>
+        <h2>Admin Portal</h2>
+        <p>Election officials can manage candidates, polling and view live results.</p>
+        <button class="btn btn-outline" onclick="showPage('page-admin-login')">Admin Login</button>
+      </div>
+    </div>
+    <div class="home-footer">
+      <span>🔒 End-to-End Encrypted</span>
+      <span>🪪 Biometric Verified</span>
+      <span>📊 Real-Time Results</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PAGE: VOTER LOGIN ══════════════ -->
+<div id="page-voter-login" class="page">
+  <div class="hero-bg"></div>
+  <div class="auth-wrap">
+    <button class="back-btn" onclick="showPage('page-home')">← Back</button>
+    <div class="auth-card glass">
+      <div class="auth-icon">🧑‍💼</div>
+      <h2>Voter Login</h2>
+      <p class="auth-sub">Enter your Voter ID to begin face verification</p>
+      <div class="form-group">
+        <label>Voter ID</label>
+        <input type="text" id="voterIdInput" placeholder="e.g. VTR-2024-001" class="input"/>
+      </div>
+      <button class="btn btn-primary full" onclick="startVoterLogin()">Verify &amp; Continue →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PAGE: FACE VERIFY ══════════════ -->
+<div id="page-face-verify" class="page">
+  <div class="hero-bg"></div>
+  <div class="auth-wrap">
+    <div class="auth-card glass">
+      <div class="auth-icon">📷</div>
+      <h2 id="faceVerifyTitle">Face Verification</h2>
+      <p class="auth-sub" id="faceVerifySubtitle">Look at the camera to verify your identity</p>
+      <div class="cam-container">
+        <video id="verifyVideo" autoplay muted playsinline></video>
+        <canvas id="verifyCanvas" style="display:none"></canvas>
+        <div class="cam-overlay">
+          <div class="cam-frame"></div>
+        </div>
+        <div id="faceStatus" class="face-status"></div>
+      </div>
+      <button class="btn btn-primary full" id="captureVerifyBtn" onclick="captureAndVerify()">Capture &amp; Verify</button>
+      <button class="btn btn-ghost full mt-1" onclick="cancelVerify()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PAGE: WELCOME VOTER ══════════════ -->
+<div id="page-welcome-voter" class="page">
+  <div class="hero-bg"></div>
+  <div class="auth-wrap">
+    <div class="auth-card glass text-center">
+      <div class="welcome-avatar" id="welcomeAvatar"></div>
+      <div class="welcome-badge">✅ Verified</div>
+      <h2 id="welcomeVoterName">Welcome, Voter!</h2>
+      <p class="auth-sub">Your identity has been confirmed. You may now proceed to vote.</p>
+      <button class="btn btn-primary full mt-2" onclick="goToBallot()">Proceed to Ballot →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PAGE: BALLOT ══════════════ -->
+<div id="page-ballot" class="page">
+  <div class="hero-bg"></div>
+  <nav class="top-nav">
+    <span class="nav-brand">🗳️ SecureVote</span>
+    <span id="ballotVoterLabel" class="nav-voter"></span>
+  </nav>
+  <div class="ballot-wrap">
+    <div class="ballot-header">
+      <h2>Cast Your Vote</h2>
+      <p>Select one candidate and confirm your choice</p>
+    </div>
+    <div id="candidateList" class="candidate-grid"></div>
+  </div>
+</div>
+
+<!-- ══════════════ PAGE: VOTE CONFIRMATION ══════════════ -->
+<div id="page-vote-confirm" class="page">
+  <div class="hero-bg"></div>
+  <div class="auth-wrap">
+    <div class="auth-card glass text-center confirm-card">
+      <div class="confirm-icon">🏆</div>
+      <h2>Confirm Your Vote</h2>
+      <p class="auth-sub">You are voting for:</p>
+      <div class="confirm-candidate" id="confirmCandidateInfo"></div>
+      <p class="confirm-warning">⚠️ This action cannot be undone.</p>
+      <button class="btn btn-primary full mt-2" id="okVoteBtn" onclick="castVote()">OK — Cast My Vote</button>
+      <button class="btn btn-ghost full mt-1" onclick="showPage('page-ballot')">← Go Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PAGE: VOTE SUCCESS ══════════════ -->
+<div id="page-vote-success" class="page">
+  <div class="hero-bg"></div>
+  <div class="auth-wrap">
+    <div class="auth-card glass text-center">
+      <div class="success-anim">✅</div>
+      <h2>Vote Cast Successfully!</h2>
+      <p class="auth-sub">Thank you for participating in democracy.</p>
+      <div id="successCandidateInfo" class="confirm-candidate mt-2"></div>
+      <button class="btn btn-primary full mt-3" onclick="exitToHome()">Return to Home</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PAGE: REGISTER ══════════════ -->
+<div id="page-register" class="page">
+  <div class="hero-bg"></div>
+  <div class="register-wrap">
+    <button class="back-btn" onclick="showPage('page-home')">← Back to Home</button>
+    <div class="register-card glass">
+      <div class="auth-icon">📋</div>
+      <h2>Voter Registration</h2>
+      <p class="auth-sub">Fill in your details and capture your face photo</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Full Name *</label>
+          <input type="text" id="regName" placeholder="Enter full name" class="input"/>
+        </div>
+        <div class="form-group">
+          <label>Voter ID *</label>
+          <input type="text" id="regVoterId" placeholder="e.g. VTR-2024-001" class="input"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Age *</label>
+          <input type="number" id="regAge" placeholder="18+" min="18" max="120" class="input"/>
+        </div>
+        <div class="form-group">
+          <label>Gender *</label>
+          <select id="regGender" class="input">
+            <option value="">Select Gender</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Face Photo Capture *</label>
+        <div class="cam-container reg-cam">
+          <video id="regVideo" autoplay muted playsinline></video>
+          <canvas id="regCanvas" style="display:none"></canvas>
+          <div class="cam-overlay"><div class="cam-frame"></div></div>
+          <div id="regFaceStatus" class="face-status"></div>
+        </div>
+        <div class="cam-controls">
+          <button class="btn btn-sm btn-accent" onclick="startRegCamera()">📷 Start Camera</button>
+          <button class="btn btn-sm btn-outline" onclick="captureRegFace()">✓ Capture Face</button>
+        </div>
+        <div id="regPreview" class="reg-preview hidden"></div>
+      </div>
+      <button class="btn btn-accent full mt-2" onclick="registerVoter()">Complete Registration →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PAGE: ADMIN LOGIN ══════════════ -->
+<div id="page-admin-login" class="page">
+  <div class="hero-bg"></div>
+  <div class="auth-wrap">
+    <button class="back-btn" onclick="showPage('page-home')">← Back</button>
+    <div class="auth-card glass">
+      <div class="auth-icon">🛡️</div>
+      <h2>Admin Login</h2>
+      <p class="auth-sub">Restricted access — authorized personnel only</p>
+      <div class="form-group">
+        <label>Admin Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="adminPwInput" placeholder="Enter password" class="input"/>
+          <button class="pw-toggle" onclick="togglePw('adminPwInput',this)">👁</button>
+        </div>
+      </div>
+      <button class="btn btn-primary full" onclick="adminLogin()">Login →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PAGE: ADMIN DASHBOARD ══════════════ -->
+<div id="page-admin" class="page">
+  <div class="hero-bg"></div>
+  <nav class="top-nav">
+    <span class="nav-brand">🛡️ Admin Portal</span>
+    <div class="nav-actions">
+      <button class="btn btn-sm btn-outline" onclick="openThemeModal()">🎨 Theme</button>
+      <button class="btn btn-sm btn-ghost" onclick="adminLogout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="admin-wrap">
+    <!-- Stats -->
+    <div class="stats-row" id="adminStats">
+      <div class="stat-card glass">
+        <div class="stat-num" id="statRegistered">0</div>
+        <div class="stat-label">Registered Voters</div>
+      </div>
+      <div class="stat-card glass">
+        <div class="stat-num" id="statPolled">0</div>
+        <div class="stat-label">Votes Polled</div>
+      </div>
+      <div class="stat-card glass">
+        <div class="stat-num" id="statPercent">0%</div>
+        <div class="stat-label">Polling %</div>
+      </div>
+      <div class="stat-card glass">
+        <div class="stat-num" id="statCandidates">0</div>
+        <div class="stat-label">Candidates</div>
+      </div>
+    </div>
+
+    <!-- Polling Control -->
+    <div class="admin-section glass">
+      <h3>⚡ Polling Control</h3>
+      <div class="polling-status" id="pollingStatusBadge">Status: Loading...</div>
+      <div class="poll-btns">
+        <button class="btn btn-primary" id="startPollBtn" onclick="startPolling()">▶ Start Polling</button>
+        <button class="btn btn-danger" id="closePollBtn" onclick="closePolling()">⏹ Close Polling</button>
+      </div>
+    </div>
+
+    <!-- Results (visible only when polling closed) -->
+    <div class="admin-section glass" id="resultsSection" style="display:none">
+      <h3>📊 Election Results</h3>
+      <div id="resultsList" class="results-list"></div>
+    </div>
+
+    <!-- Add Candidate -->
+    <div class="admin-section glass">
+      <h3>➕ Add Candidate</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Candidate Name</label>
+          <input type="text" id="candName" placeholder="Full name" class="input"/>
+        </div>
+        <div class="form-group">
+          <label>Party Name</label>
+          <input type="text" id="candParty" placeholder="Party name" class="input"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Candidate Photo</label>
+          <input type="file" id="candPhoto" accept="image/*" class="input file-input"/>
+        </div>
+        <div class="form-group">
+          <label>Party Symbol</label>
+          <input type="file" id="candSymbol" accept="image/*" class="input file-input"/>
+        </div>
+      </div>
+      <button class="btn btn-accent" onclick="addCandidate()">➕ Add Candidate</button>
+    </div>
+
+    <!-- Candidates List -->
+    <div class="admin-section glass">
+      <h3>🧑‍🤝‍🧑 Registered Candidates</h3>
+      <div id="adminCandidateList" class="admin-cand-list"></div>
+    </div>
+
+    <!-- Polling Percentage Chart -->
+    <div class="admin-section glass">
+      <h3>📈 Polling Percentage</h3>
+      <div class="poll-chart-wrap">
+        <div class="poll-bar-label">
+          <span id="pollBarLabel">0% Voter Turnout</span>
+        </div>
+        <div class="poll-bar-bg">
+          <div class="poll-bar-fill" id="pollBarFill" style="width:0%"></div>
+        </div>
+        <div class="poll-detail">
+          <span id="pollDetailText">Loading...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ THEME MODAL ══════════════ -->
+<div id="themeModal" class="modal-overlay hidden">
+  <div class="modal glass">
+    <h3>🎨 Change Theme</h3>
+    <div class="theme-grid">
+      <div class="theme-swatch dark-theme" onclick="setTheme('dark')">
+        <span>Dark</span><span class="check" id="chk-dark">✓</span>
+      </div>
+      <div class="theme-swatch light-theme" onclick="setTheme('light')">
+        <span>Light</span><span class="check" id="chk-light"></span>
+      </div>
+      <div class="theme-swatch blue-theme" onclick="setTheme('blue')">
+        <span>Ocean Blue</span><span class="check" id="chk-blue"></span>
+      </div>
+      <div class="theme-swatch green-theme" onclick="setTheme('green')">
+        <span>Forest</span><span class="check" id="chk-green"></span>
+      </div>
+      <div class="theme-swatch purple-theme" onclick="setTheme('purple')">
+        <span>Royal Purple</span><span class="check" id="chk-purple"></span>
+      </div>
+      <div class="theme-swatch red-theme" onclick="setTheme('red')">
+        <span>Crimson</span><span class="check" id="chk-red"></span>
+      </div>
+    </div>
+    <button class="btn btn-ghost full mt-2" onclick="closeThemeModal()">Close</button>
+  </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<!-- face-api.js -->
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<!-- App Scripts -->
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
