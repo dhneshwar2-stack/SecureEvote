@@ -562,10 +562,60 @@ async function closePolling() {
   } catch (e) { toast('Error: ' + e.message, 'error'); }
 }
 
+async function resetPolling() {
+  if (!confirm('⚠️ Reset polling? This will erase ALL vote data and restart polling as active.\n\nThis action cannot be undone.')) return;
+
+  const btn = $('resetPollBtn');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Resetting…';
+
+  try {
+    const batch = db.batch();
+
+    // Reset all candidates' votes to 0
+    const candSnap = await db.collection('candidates').get();
+    candSnap.forEach(doc => {
+      batch.update(doc.ref, { votes: 0 });
+    });
+
+    // Reset all voters' voting status
+    const voterSnap = await db.collection('voters').get();
+    voterSnap.forEach(doc => {
+      batch.update(doc.ref, {
+        hasVoted: false,
+        votedFor: firebase.firestore.FieldValue.delete(),
+        votedAt:  firebase.firestore.FieldValue.delete()
+      });
+    });
+
+    // Reset totalVotes AND immediately activate polling
+    const pollingRef = db.collection('settings').doc('polling');
+    batch.update(pollingRef, {
+      totalVotes: 0,
+      active: true,
+      closed: false
+    });
+
+    await batch.commit();
+
+    toast('✅ Polling reset! A fresh poll is now active.', 'success');
+    updatePollingUI(true, false);
+    if ($('resultsSection')) $('resultsSection').style.display = 'none';
+    loadAdminStats();
+    loadAdminCandidates();
+  } catch (e) {
+    toast('Reset failed: ' + e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
+
 function updatePollingUI(active, closed) {
-  const badge = $('pollingStatusBadge');
+  const badge    = $('pollingStatusBadge');
   const startBtn = $('startPollBtn');
   const closeBtn = $('closePollBtn');
+  const resetBtn = $('resetPollBtn');
   if (!badge) return;
 
   state.pollingActive = !!active;
@@ -574,27 +624,21 @@ function updatePollingUI(active, closed) {
   if (active) {
     badge.textContent = 'Status: Active 🟢';
     badge.className = 'polling-status active';
-    if (startBtn) {
-      startBtn.textContent = '▶ Start Polling';
-      startBtn.disabled = true;
-    }
-    if (closeBtn) closeBtn.disabled = false;
+    if (startBtn) { startBtn.textContent = '▶ Start Polling'; startBtn.disabled = true; }
+    if (closeBtn) { closeBtn.disabled = false; }
+    if (resetBtn) { resetBtn.style.display = 'inline-flex'; resetBtn.disabled = false; }
   } else if (closed) {
     badge.textContent = 'Status: Closed 🔴';
     badge.className = 'polling-status closed';
-    if (startBtn) {
-      startBtn.textContent = '🔄 Reset & Start Polling';
-      startBtn.disabled = false;
-    }
-    if (closeBtn) closeBtn.disabled = true;
+    if (startBtn) { startBtn.textContent = '▶ Start Polling'; startBtn.disabled = false; }
+    if (closeBtn) { closeBtn.disabled = true; }
+    if (resetBtn) { resetBtn.style.display = 'inline-flex'; resetBtn.disabled = false; }
   } else {
     badge.textContent = 'Status: Not Started ⚪';
     badge.className = 'polling-status';
-    if (startBtn) {
-      startBtn.textContent = '▶ Start Polling';
-      startBtn.disabled = false;
-    }
-    if (closeBtn) closeBtn.disabled = true;
+    if (startBtn) { startBtn.textContent = '▶ Start Polling'; startBtn.disabled = false; }
+    if (closeBtn) { closeBtn.disabled = true; }
+    if (resetBtn) { resetBtn.style.display = 'none'; }
   }
 }
 
