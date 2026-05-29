@@ -16,6 +16,7 @@ const state = {
   pollingClosed: false,
   faceModelsLoaded: false,
   currentTheme: 'dark',
+  dbInitialized: false,      // prevents multiple registrations of stats/listeners on auth changes
 };
 
 // ── DOM helpers ────────────────────────────────────────
@@ -53,8 +54,15 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 
   loadTheme();
-  loadAdminStats();
-  listenPollingState();
+  
+  // Wait for authentication to succeed before executing database reads
+  firebase.auth().onAuthStateChanged(user => {
+    if (user && !state.dbInitialized) {
+      state.dbInitialized = true;
+      loadAdminStats();
+      listenPollingState();
+    }
+  });
 });
 
 // ── Face-API Models ────────────────────────────────────
@@ -489,6 +497,46 @@ function togglePw(inputId, btn) {
 
 // ── Polling Control ─────────────────────────────
 async function startPolling() {
+  if (state.pollingClosed) {
+    if (!confirm('Starting a new poll will reset all candidate votes and voter records. Do you want to proceed?')) {
+      return;
+    }
+    
+    toast('Resetting database...', 'info');
+    try {
+      const batch = db.batch();
+      
+      // Reset all candidates' votes to 0
+      const candSnap = await db.collection('candidates').get();
+      candSnap.forEach(doc => {
+        batch.update(doc.ref, { votes: 0 });
+      });
+      
+      // Reset all voters' voting status
+      const voterSnap = await db.collection('voters').get();
+      voterSnap.forEach(doc => {
+        batch.update(doc.ref, {
+          hasVoted: false,
+          votedFor: firebase.firestore.FieldValue.delete(),
+          votedAt: firebase.firestore.FieldValue.delete()
+        });
+      });
+      
+      // Reset total votes polled
+      const pollingRef = db.collection('settings').doc('polling');
+      batch.update(pollingRef, { totalVotes: 0 });
+      
+      await batch.commit();
+      
+      loadAdminStats();
+      loadAdminCandidates();
+      toast('Database reset complete!', 'success');
+    } catch (err) {
+      toast('Error resetting database: ' + err.message, 'error');
+      return;
+    }
+  }
+
   try {
     await db.collection('settings').doc('polling').set(
       { active: true, closed: false },
@@ -520,32 +568,50 @@ function updatePollingUI(active, closed) {
   const closeBtn = $('closePollBtn');
   if (!badge) return;
 
+  state.pollingActive = !!active;
+  state.pollingClosed = !!closed;
+
   if (active) {
     badge.textContent = 'Status: Active 🟢';
     badge.className = 'polling-status active';
-    startBtn.disabled = true;
-    closeBtn.disabled = false;
+    if (startBtn) {
+      startBtn.textContent = '▶ Start Polling';
+      startBtn.disabled = true;
+    }
+    if (closeBtn) closeBtn.disabled = false;
   } else if (closed) {
     badge.textContent = 'Status: Closed 🔴';
     badge.className = 'polling-status closed';
-    startBtn.disabled = true;
-    closeBtn.disabled = true;
+    if (startBtn) {
+      startBtn.textContent = '🔄 Reset & Start Polling';
+      startBtn.disabled = false;
+    }
+    if (closeBtn) closeBtn.disabled = true;
   } else {
     badge.textContent = 'Status: Not Started ⚪';
     badge.className = 'polling-status';
-    startBtn.disabled = false;
-    closeBtn.disabled = true;
+    if (startBtn) {
+      startBtn.textContent = '▶ Start Polling';
+      startBtn.disabled = false;
+    }
+    if (closeBtn) closeBtn.disabled = true;
   }
 }
 
 function listenPollingState() {
   db.collection('settings').doc('polling').onSnapshot(snap => {
-    if (!snap.exists) { updatePollingUI(false, false); return; }
+    if (!snap.exists) {
+      updatePollingUI(false, false);
+      if ($('resultsSection')) $('resultsSection').style.display = 'none';
+      return;
+    }
     const d = snap.data();
     updatePollingUI(d.active, d.closed);
     if (d.closed) {
       loadResults();
-      $('resultsSection').style.display = 'block';
+      if ($('resultsSection')) $('resultsSection').style.display = 'block';
+    } else {
+      if ($('resultsSection')) $('resultsSection').style.display = 'none';
     }
     updatePollChart(d);
   });
